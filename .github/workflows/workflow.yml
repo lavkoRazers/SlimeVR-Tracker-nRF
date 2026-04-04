@@ -116,12 +116,13 @@ jobs:
       - name: 🐍 Setup Python
         run: |
           python3 -m venv ~/.venv
-          echo "$HOME/.venv/bin" >> $GITHUB_PATH
-          ~/.venv/bin/pip install west ninja
+          source ~/.venv/bin/activate
+          pip install west ninja
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
           cd zephyr-workspace
           west init -l SlimeVR-Tracker-nRF || true
           west update --narrow -o=--depth=1
-          ~/.venv/bin/pip install -r zephyr/scripts/requirements.txt
+          pip install -r zephyr/scripts/requirements.txt
 
       - name: 🔍 Debug DTS (Verify 8MHz)
         run: |
