@@ -24,9 +24,9 @@
 #include "util.h"
 
 #include "sensor/sensors_enum.h"
-#include "../src/vqf.h" // conflicting with vqf.h in local path
+#include "../../../../vqf-c/src/vqf.h"
 
-#include "../vqf/vqf.h" // conflicting with vqf.h in vqf-c
+#include "vqf.h"
 #include "sensor/fusion/fusion_none.h"
 
 #ifndef DEG_TO_RAD
