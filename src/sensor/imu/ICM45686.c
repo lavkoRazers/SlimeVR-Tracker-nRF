@@ -441,7 +441,11 @@ int icm45_ext_passthrough(bool passthrough)
 		LOG_ERR("Communication error");
 	return 0;
 }
-
+// FIXED: Added bridge function for magnetometer scan
+int icm45_ext_setup(void)
+{
+	return icm45_ext_passthrough(true);
+}
 const sensor_imu_t sensor_imu_icm45686 = {
 	*icm45_init,
 	*icm45_shutdown,
@@ -458,6 +462,6 @@ const sensor_imu_t sensor_imu_icm45686 = {
 	*icm45_setup_DRDY,
 	*icm45_setup_WOM,
 
-	*imu_none_ext_setup,
+	*icm45_ext_setup,
 	*icm45_ext_passthrough
 };
