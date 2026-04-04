@@ -27,7 +27,9 @@ jobs:
           west init -l . || true
           west update --narrow -o=--depth=1
           west zephyr-export
-          pip3 install -r zephyr/scripts/requirements.txt
+          # Автоматически находим путь к zephyr и ставим требования
+          ZEPHYR_DIR=$(west list zephyr -f {path})
+          pip3 install -r $ZEPHYR_DIR/scripts/requirements.txt
 
       - name: 🪁 Setup Zephyr SDK
         run: |
