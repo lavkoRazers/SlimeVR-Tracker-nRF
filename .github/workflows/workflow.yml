@@ -122,7 +122,6 @@ jobs:
           pip install west ninja
           echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
           
-          # Принудительно обновляем подмодули в папке репозитория
           cd zephyr-workspace/SlimeVR-Tracker-nRF
           git submodule update --init --recursive
           
@@ -141,7 +140,6 @@ jobs:
           source ~/.venv/bin/activate
           export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
           
-          # Используем абсолютный путь
           ABS_REPO_PATH=$GITHUB_WORKSPACE/zephyr-workspace/SlimeVR-Tracker-nRF
           
           cd zephyr-workspace
@@ -152,9 +150,13 @@ jobs:
             -- \
             -DNCS_TOOLCHAIN_VERSION=NONE \
             -DBOARD_ROOT="$ABS_REPO_PATH"
+            
+          # Вытаскиваем файл из глубины папок
+          mkdir -p bin_out
+          find build -name "zephyr.${{ matrix.boards.fileformat }}" -exec cp {} bin_out/${{ matrix.boards.filename }}.${{ matrix.boards.fileformat }} \;
 
       - name: 💾 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.boards.filename }}
-          path: zephyr-workspace/build/zephyr/zephyr.${{ matrix.boards.fileformat }}
+          path: zephyr-workspace/bin_out/${{ matrix.boards.filename }}.${{ matrix.boards.fileformat }}
