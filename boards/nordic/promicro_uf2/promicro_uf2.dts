@@ -214,7 +214,7 @@ zephyr_udc0: &usbd {
 
 	imu_spi: imu_spi@0 {
 		compatible = "vnd,spi-device";
-		spi-max-frequency = <DT_FREQ_M(24)>;
+		spi-max-frequency = <DT_FREQ_M(8)>;
 		label = "imu-spi";
 		reg = <0>;
 	};
