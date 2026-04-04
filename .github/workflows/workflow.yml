@@ -41,7 +41,7 @@ jobs:
       - name: 🔍 Debug DTS Check
         run: |
           echo "--- Checking SPI Frequency in DTS ---"
-          grep "max-frequency" boards/arm/promicro_uf2/promicro_uf2_spi.dts || echo "File not found or no frequency entry"
+          grep "max-frequency" boards/arm/promicro_uf2/promicro_uf2.dts || echo "File not found or no frequency entry"
 
       - name: 🔨 Build Firmware (Pristine)
         run: |
