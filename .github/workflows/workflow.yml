@@ -1,63 +1,146 @@
-name: Build SlimeNRF 8MHz Final
+name: SlimeNRF CI (Fixed 8MHz)
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.event.pull_request.head.sha || github.ref }}
+  cancel-in-progress: true
+
+permissions: write-all
+
+env:
+  ZEPHYR_SDK_VERSION: "0.16.9"
+
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
-    
+    outputs:
+      sdk-hash: ${{ steps.generate-vars.outputs.sdk-hash }}
+      sdk-revision: ${{ steps.generate-vars.outputs.sdk-revision }}
+      repo-url: ${{ steps.generate-vars.outputs.repo-url }}
+      branch: ${{ steps.generate-vars.outputs.branch }}
+      repo-hash: ${{ steps.generate-vars.outputs.repo-hash }}
     steps:
-      - name: 💻 Checkout
+      - name: 💻 Checkout CI Repository
         uses: actions/checkout@v4
         with:
-          # Качаем прямо в текущую папку без подпапок
+          path: zephyr-workspace/SlimeNRF-CI
           submodules: recursive
+
+      - name: 📟 Generate CI Variables
+        id: generate-vars
+        run: |
+          cd zephyr-workspace/SlimeNRF-CI
+          WEST_FILE="west.yml"
+          SDK_URL=$(yq -r '.manifest.projects[] | select(.name=="sdk-nrf") | .url' "$WEST_FILE")
+          SDK_REVISION=$(yq -r '.manifest.projects[] | select(.name=="sdk-nrf") | .revision' "$WEST_FILE")
+          SDK_COMMIT=$(git ls-remote "$SDK_URL" "$SDK_REVISION" | awk '{print $1}')
+          
+          echo "sdk-hash=$SDK_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "sdk-revision=$SDK_REVISION" >> "$GITHUB_OUTPUT"
+          echo "repo-url=https://github.com/$GITHUB_REPOSITORY.git" >> "$GITHUB_OUTPUT"
+          echo "branch=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
+          echo "repo-hash=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Cache Zephyr SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ~/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+          key: zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+
+      - name: 🪁 Install Zephyr SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${{ env.ZEPHYR_SDK_VERSION }}/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}_linux-x86_64_minimal.tar.xz
+          tar xf zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}_linux-x86_64_minimal.tar.xz -C ~/
+          ~/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}/setup.sh -c -t arm-zephyr-eabi
+
+      - name: 📦 Cache West Workspace
+        id: cache-west
+        uses: actions/cache@v4
+        with:
+          path: |
+            zephyr-workspace/.west
+            zephyr-workspace/zephyr
+            zephyr-workspace/nrf
+            zephyr-workspace/modules
+            zephyr-workspace/nrfxlib
+          key: west-workspace-${{ steps.generate-vars.outputs.sdk-hash }}
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        boards: [
+          {boardname: "promicro_uf2/nrf52840/spi", fileformat: "uf2", filename: "SlimeNRF_ProMicro_SPI_8MHz"},
+          {boardname: "promicro_uf2/nrf52840/smspi", fileformat: "uf2", filename: "SlimeNRF_ProMicro_smSPI_Fixed"}
+        ]
+    steps:
+      - name: 💻 Checkout Fresh Firmware
+        uses: actions/checkout@v4
+        with:
+          path: zephyr-workspace/SlimeVR-Tracker-nRF
 
       - name: 🛠 Install System Deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gperf device-tree-compiler python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make gcc gcc-multilib g++-multilib
+          sudo apt-get install -y cmake ninja-build gperf device-tree-compiler python3-pip python3-venv wget xz-utils file make gcc
 
-      - name: 🐍 Setup West
+      - name: 📦 Restore SDK
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+          key: zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+
+      - name: 📦 Restore West Workspace
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            zephyr-workspace/.west
+            zephyr-workspace/zephyr
+            zephyr-workspace/nrf
+            zephyr-workspace/modules
+            zephyr-workspace/nrfxlib
+          key: west-workspace-${{ needs.setup.outputs.sdk-hash }}
+
+      - name: 🐍 Setup Python
         run: |
-          pip3 install west
-          # Инициализируем west прямо здесь
-          west init -l . || true
+          python3 -m venv ~/.venv
+          echo "$HOME/.venv/bin" >> $GITHUB_PATH
+          ~/.venv/bin/pip install west ninja
+          cd zephyr-workspace
+          west init -l SlimeVR-Tracker-nRF || true
           west update --narrow -o=--depth=1
-          west zephyr-export
-          
-          # Устанавливаем зависимости по самому прямому пути, который создает west
-          # Обычно это zephyr/scripts/requirements.txt относительно корня
-          if [ -f "zephyr/scripts/requirements.txt" ]; then
-            pip3 install -r zephyr/scripts/requirements.txt
-          else
-            # Если west положил ядро в другое место, ищем его
-            pip3 install -r $(find . -name requirements.txt | grep scripts | head -n 1)
-          fi
+          ~/.venv/bin/pip install -r zephyr/scripts/requirements.txt
 
-      - name: 🪁 Setup SDK
+      - name: 🔍 Debug DTS (Verify 8MHz)
         run: |
-          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.5/zephyr-sdk-0.16.5_linux-x86_64_minimal.tar.xz
-          tar xf zephyr-sdk-0.16.5_linux-x86_64_minimal.tar.xz
-          ./zephyr-sdk-0.16.5/setup.sh -c -t arm-zephyr-eabi
+          echo "Checking frequency in boards/nordic/promicro_uf2/promicro_uf2_spi.dts"
+          grep "max-frequency" zephyr-workspace/SlimeVR-Tracker-nRF/boards/nordic/promicro_uf2/promicro_uf2_spi.dts || echo "Not found"
 
-      - name: 🔍 Debug DTS
+      - name: 🔨 Build Firmware
         run: |
-          echo "--- Checking Frequency ---"
-          # Твой новый путь к плате
-          grep "max-frequency" boards/nordic/promicro_uf2/promicro_uf2_spi.dts || echo "Not found"
+          export PATH="$HOME/.venv/bin:$PATH"
+          export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
+          cd zephyr-workspace
+          west build \
+            --board ${{ matrix.boards.boardname }} \
+            --pristine=always "SlimeVR-Tracker-nRF" \
+            -- -DNCS_TOOLCHAIN_VERSION=NONE \
+            -DBOARD_ROOT=./SlimeVR-Tracker-nRF
 
-      - name: 🔨 Build
-        run: |
-          export ZEPHYR_SDK_INSTALL_DIR=$(pwd)/zephyr-sdk-0.16.5
-          # Собираем из корня (.) с принудительной очисткой (-p)
-          west build -p -b promicro_uf2/nrf52840/spi . -- -DNCS_TOOLCHAIN_VERSION=NONE
-
-      - name: 💾 Upload
+      - name: 💾 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SlimeNRF_8MHz_Fixed
-          path: build/zephyr/zephyr.uf2
+          name: ${{ matrix.boards.filename }}
+          path: zephyr-workspace/build/zephyr/zephyr.${{ matrix.boards.fileformat }}
