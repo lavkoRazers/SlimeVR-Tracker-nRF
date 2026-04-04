@@ -1,4 +1,4 @@
-name: Build Fixed SlimeNRF 8MHz
+name: Build Fixed SlimeNRF 8MHz (No Cache)
 
 on:
   push:
@@ -13,6 +13,7 @@ jobs:
       - name: 💻 Checkout Repository
         uses: actions/checkout@v4
         with:
+          path: SlimeNRF-Source # Качаем код в отдельную папку
           submodules: recursive
 
       - name: 🛠 Install System Dependencies
@@ -20,17 +21,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build gperf device-tree-compiler python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make gcc gcc-multilib g++-multilib
 
-      - name: 🐍 Setup West & Update Modules
+      - name: 🐍 Setup West Workspace
         run: |
           pip3 install west
-          west init -l . || true
+          # Создаем рабочее пространство как в твоем старом скрипте
+          mkdir zephyr-workspace
+          cd zephyr-workspace
+          west init -l ../SlimeNRF-Source
           west update --narrow -o=--depth=1
           west zephyr-export
           
-          # Динамически находим путь к zephyr, чтобы не было ошибки "No such file"
-          ZEPHYR_DIR=$(west list zephyr -f {path})
-          echo "Zephyr found at: $ZEPHYR_DIR"
-          pip3 install -r $ZEPHYR_DIR/scripts/requirements.txt
+          # Установка зависимостей через поиск файла (самый надежный метод)
+          REQ_FILE=$(find . -name requirements.txt | grep "zephyr/scripts/requirements.txt" | head -n 1)
+          pip3 install -r "$REQ_FILE"
 
       - name: 🪁 Setup Zephyr SDK
         run: |
@@ -38,21 +41,21 @@ jobs:
           tar xf zephyr-sdk-0.16.5_linux-x86_64_minimal.tar.xz
           ./zephyr-sdk-0.16.5/setup.sh -c -t arm-zephyr-eabi
 
-      - name: 🔍 Debug DTS (Check 8MHz)
+      - name: 🔍 Debug DTS Check (Verify 8MHz)
         run: |
-          echo "--- Checking SPI Frequency in DTS ---"
-          # Проверяем файл в твоей новой папке boards/nordic/
-          grep "max-frequency" boards/nordic/promicro_uf2/promicro_uf2_spi.dts || echo "Frequency entry not found!"
+          echo "--- Checking Frequency in DTS ---"
+          # Проверяем файл по новому пути
+          grep "max-frequency" SlimeNRF-Source/boards/nordic/promicro_uf2/promicro_uf2_spi.dts || echo "Frequency entry NOT FOUND!"
 
-      - name: 🔨 Build Firmware (Pristine)
+      - name: 🔨 Build Firmware (SPI 8MHz)
         run: |
           export ZEPHYR_SDK_INSTALL_DIR=$(pwd)/zephyr-sdk-0.16.5
-          # Собираем версию SPI с флагом полной очистки кеша
-          west build -p -b promicro_uf2/nrf52840/spi . \
-            -- -DNCS_TOOLCHAIN_VERSION=NONE
+          cd zephyr-workspace
+          # Собираем прошивку, указывая на папку с твоими исходниками
+          west build -p -b promicro_uf2/nrf52840/spi ../SlimeNRF-Source -- -DNCS_TOOLCHAIN_VERSION=NONE
 
       - name: 💾 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SlimeNRF_8MHz_Fixed
-          path: build/zephyr/zephyr.uf2
+          name: SlimeNRF_ProMicro_8MHz
+          path: zephyr-workspace/build/zephyr/zephyr.uf2
