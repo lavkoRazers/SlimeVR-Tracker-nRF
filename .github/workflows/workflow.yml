@@ -90,6 +90,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: zephyr-workspace/SlimeVR-Tracker-nRF
+          fetch-depth: 0
+          submodules: recursive
 
       - name: 🛠 Install System Deps
         run: |
@@ -119,7 +121,12 @@ jobs:
           source ~/.venv/bin/activate
           pip install west ninja
           echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
-          cd zephyr-workspace
+          
+          # Принудительно обновляем подмодули в папке репозитория
+          cd zephyr-workspace/SlimeVR-Tracker-nRF
+          git submodule update --init --recursive
+          
+          cd ..
           west init -l SlimeVR-Tracker-nRF || true
           west update --narrow -o=--depth=1
           pip install -r zephyr/scripts/requirements.txt
@@ -134,7 +141,7 @@ jobs:
           source ~/.venv/bin/activate
           export ZEPHYR_SDK_INSTALL_DIR=$HOME/zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}
           
-          # Определяем абсолютный путь к репозиторию с платами
+          # Используем абсолютный путь
           ABS_REPO_PATH=$GITHUB_WORKSPACE/zephyr-workspace/SlimeVR-Tracker-nRF
           
           cd zephyr-workspace
