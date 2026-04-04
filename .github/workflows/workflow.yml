@@ -1,4 +1,4 @@
-name: Build Fixed SlimeNRF 8MHz (No Cache)
+name: Build SlimeNRF 8MHz Final
 
 on:
   push:
@@ -10,52 +10,54 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 💻 Checkout Repository
+      - name: 💻 Checkout
         uses: actions/checkout@v4
         with:
-          path: SlimeNRF-Source # Качаем код в отдельную папку
+          # Качаем прямо в текущую папку без подпапок
           submodules: recursive
 
-      - name: 🛠 Install System Dependencies
+      - name: 🛠 Install System Deps
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build gperf device-tree-compiler python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make gcc gcc-multilib g++-multilib
 
-      - name: 🐍 Setup West Workspace
+      - name: 🐍 Setup West
         run: |
           pip3 install west
-          # Создаем рабочее пространство как в твоем старом скрипте
-          mkdir zephyr-workspace
-          cd zephyr-workspace
-          west init -l ../SlimeNRF-Source
+          # Инициализируем west прямо здесь
+          west init -l . || true
           west update --narrow -o=--depth=1
           west zephyr-export
           
-          # Установка зависимостей через поиск файла (самый надежный метод)
-          REQ_FILE=$(find . -name requirements.txt | grep "zephyr/scripts/requirements.txt" | head -n 1)
-          pip3 install -r "$REQ_FILE"
+          # Устанавливаем зависимости по самому прямому пути, который создает west
+          # Обычно это zephyr/scripts/requirements.txt относительно корня
+          if [ -f "zephyr/scripts/requirements.txt" ]; then
+            pip3 install -r zephyr/scripts/requirements.txt
+          else
+            # Если west положил ядро в другое место, ищем его
+            pip3 install -r $(find . -name requirements.txt | grep scripts | head -n 1)
+          fi
 
-      - name: 🪁 Setup Zephyr SDK
+      - name: 🪁 Setup SDK
         run: |
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.5/zephyr-sdk-0.16.5_linux-x86_64_minimal.tar.xz
           tar xf zephyr-sdk-0.16.5_linux-x86_64_minimal.tar.xz
           ./zephyr-sdk-0.16.5/setup.sh -c -t arm-zephyr-eabi
 
-      - name: 🔍 Debug DTS Check (Verify 8MHz)
+      - name: 🔍 Debug DTS
         run: |
-          echo "--- Checking Frequency in DTS ---"
-          # Проверяем файл по новому пути
-          grep "max-frequency" SlimeNRF-Source/boards/nordic/promicro_uf2/promicro_uf2_spi.dts || echo "Frequency entry NOT FOUND!"
+          echo "--- Checking Frequency ---"
+          # Твой новый путь к плате
+          grep "max-frequency" boards/nordic/promicro_uf2/promicro_uf2_spi.dts || echo "Not found"
 
-      - name: 🔨 Build Firmware (SPI 8MHz)
+      - name: 🔨 Build
         run: |
           export ZEPHYR_SDK_INSTALL_DIR=$(pwd)/zephyr-sdk-0.16.5
-          cd zephyr-workspace
-          # Собираем прошивку, указывая на папку с твоими исходниками
-          west build -p -b promicro_uf2/nrf52840/spi ../SlimeNRF-Source -- -DNCS_TOOLCHAIN_VERSION=NONE
+          # Собираем из корня (.) с принудительной очисткой (-p)
+          west build -p -b promicro_uf2/nrf52840/spi . -- -DNCS_TOOLCHAIN_VERSION=NONE
 
-      - name: 💾 Upload Artifact
+      - name: 💾 Upload
         uses: actions/upload-artifact@v4
         with:
-          name: SlimeNRF_ProMicro_8MHz
-          path: zephyr-workspace/build/zephyr/zephyr.uf2
+          name: SlimeNRF_8MHz_Fixed
+          path: build/zephyr/zephyr.uf2
