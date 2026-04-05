@@ -95,7 +95,7 @@
 		sw0 = &button0;
 		pwm-led0 = &pwm_led0;
 		imu = &imu_spi;
-		mag = &mag;
+		/* Алиас магнитометра удален, так как компас ищется через мост IMU */
 	};
 
 	pwmclock: pwmclock {
@@ -107,9 +107,10 @@
 	battery-divider {
 		compatible = "voltage-divider";
 		status = "okay";
-		io-channels = <&adc 12>;
-		output-ohms = <1>;
-		full-ohms = <5>;
+		io-channels = <&adc 4>; /* ИСПРАВЛЕНО: Канал 4 для пина P0.28 */
+		output-ohms = <10>;
+		full-ohms = <20>; /* ИСПРАВЛЕНО: Делитель 10M + 10M */
+		power-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* ИСПРАВЛЕНО: Включение замера через P0.27 */
 	};
 
 	zephyr,user {
@@ -157,12 +158,7 @@
 	pinctrl-0 = <&i2c0_default>;
 	pinctrl-1 = <&i2c0_sleep>;
 	pinctrl-names = "default", "sleep";
-
-	mag: mag@0 {
-		compatible = "vnd,i2c-device"; 
-		label = "mag";
-		reg = <0>;
-	};
+	/* Узел mag удален, чтобы не мешать сканированию через IMU I2CM */
 };
 
 &pwm0 {
