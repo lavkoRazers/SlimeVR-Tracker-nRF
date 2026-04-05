@@ -5,21 +5,6 @@
 #include <nordic/nrf52840_qiaa.dtsi>
 
 &pinctrl {
-	i2c0_default: i2c0_default {
-		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 24)>, <NRF_PSEL(TWIM_SCL, 0, 22)>;
-			bias-disable;
-		};
-	};
-
-	i2c0_sleep: i2c0_sleep {
-		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 24)>, <NRF_PSEL(TWIM_SCL, 0, 22)>;
-			bias-disable;
-			low-power-enable;
-		};
-	};
-
 	pwm0_default: pwm0_default {
 		group1 {
 			psels = <NRF_PSEL(PWM_OUT0, 0, 15)>;
@@ -49,17 +34,18 @@
 
 	spi3_default: spi3_default {
 		group1 {
-			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
-					<NRF_PSEL(SPIM_MOSI, 1, 8)>,
-					<NRF_PSEL(SPIM_SCK, 0, 7)>;
+			/* ПИНЫ SPI ИЗМЕНЕНЫ ПОД КОНЦЕПТ ДРУГА */
+			psels = <NRF_PSEL(SPIM_MISO, 0, 11)>, /* SDO = 011 */
+					<NRF_PSEL(SPIM_MOSI, 0, 24)>, /* SDA = 024 */
+					<NRF_PSEL(SPIM_SCK,  0, 22)>;  /* SCL = 022 */
 		};
 	};
 
 	spi3_sleep: spi3_sleep {
 		group1 {
-			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
-					<NRF_PSEL(SPIM_MOSI, 1, 8)>,
-					<NRF_PSEL(SPIM_SCK, 0, 7)>;
+			psels = <NRF_PSEL(SPIM_MISO, 0, 11)>,
+					<NRF_PSEL(SPIM_MOSI, 0, 24)>,
+					<NRF_PSEL(SPIM_SCK,  0, 22)>;
 			low-power-enable;
 		};
 	};
@@ -86,7 +72,7 @@
 	buttons {
 		compatible = "gpio-keys";
 		button0: button_0 {
-			gpios = <&gpio0 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			gpios = <&gpio0 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>; /* SW0 = 006 */
 			label = "Push button switch 0";
 		};
 	};
@@ -95,7 +81,6 @@
 		sw0 = &button0;
 		pwm-led0 = &pwm_led0;
 		imu = &imu_spi;
-		/* Алиас магнитометра удален, так как компас ищется через мост IMU */
 	};
 
 	pwmclock: pwmclock {
@@ -107,21 +92,20 @@
 	battery-divider {
 		compatible = "voltage-divider";
 		status = "okay";
-		io-channels = <&adc 4>; /* ИСПРАВЛЕНО: Канал 4 для пина P0.28 */
-		output-ohms = <10>;
-		full-ohms = <20>; /* ИСПРАВЛЕНО: Делитель 10M + 10M */
-		power-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* ИСПРАВЛЕНО: Включение замера через P0.27 */
+		/* Замер батареи через внутренний системный канал контроллера (VDDHDIV5) */
+		io-channels = <&adc 12>;
+		output-ohms = <1>;
+		full-ohms = <5>;
 	};
 
 	zephyr,user {
-		pwr-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-		vcc-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-		int0-gpios = <&gpio0 26 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+		/* УПРАВЛЯЮЩИЕ ПИНЫ ИЗМЕНЕНЫ ПОД КОНЦЕПТ ДРУГА */
+		vcc-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>; /* 3V3 = 017 */
+		gnd-gpios = <&gpio0 20 GPIO_OPEN_DRAIN>;  /* GND = 020 */
+		int0-gpios = <&gpio0 2 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>; /* INT1 = 002 */
+		clk-gpios = <&gpio1 11 GPIO_OPEN_DRAIN>;  /* CLK_CTL = 111 */
+		
 		led-gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
-		gnd-gpios = <&gpio0 20 GPIO_OPEN_DRAIN>;
-		clk-gpios = <&gpio0 12 GPIO_OPEN_DRAIN>;
-		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
-		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -149,16 +133,9 @@
 	status = "okay";
 };
 
+/* I2C полностью отключен, так как его пины (22 и 24) теперь заняты шиной SPI */
 &i2c0 {
-	compatible = "nordic,nrf-twim";
-	status = "okay";
-	zephyr,concat-buf-size = <1023>;
-	zephyr,flash-buf-max-size = <1023>;
-	clock-frequency = <I2C_BITRATE_FAST>;
-	pinctrl-0 = <&i2c0_default>;
-	pinctrl-1 = <&i2c0_sleep>;
-	pinctrl-names = "default", "sleep";
-	/* Узел mag удален, чтобы не мешать сканированию через IMU I2CM */
+	status = "disabled";
 };
 
 &pwm0 {
@@ -197,11 +174,11 @@ zephyr_udc0: &usbd {
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
-	cs-gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>; /* CS = 100 */
 
 	imu_spi: imu_spi@0 {
 		compatible = "vnd,spi-device";
-		spi-max-frequency = <8000000>;
+		spi-max-frequency = <8000000>; /* Оставляем 8MHz для стабильности */
 		label = "imu-spi";
 		reg = <0>;
 	};
