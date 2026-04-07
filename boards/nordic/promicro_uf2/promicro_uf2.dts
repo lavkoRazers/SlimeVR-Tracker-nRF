@@ -36,10 +36,10 @@
 
 	aliases {
 		imu = &imu_spi;
-		battery = &vbatt; /* Явный алиас, чтобы код точно нашел делитель */
 	};
 
-	vbatt: vbatt {
+	/* Имя ноды должно быть строго battery */
+	battery: battery {
 		compatible = "voltage-divider";
 		io-channels = <&adc 4>;
 		output-ohms = <10000000>;
@@ -47,7 +47,7 @@
 	};
 
 	zephyr,user {
-		/delete-property/ io-channels; /* Принудительно удаляем старые конфликты */
+		/delete-property/ io-channels; /* Удаляем конфликты базовой платы */
 		
 		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
