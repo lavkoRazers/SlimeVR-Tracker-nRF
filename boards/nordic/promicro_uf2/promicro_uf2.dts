@@ -38,9 +38,17 @@
 		imu = &imu_spi;
 	};
 
+	/* Выделенный узел для батареи, чтобы компилятор не ругался */
+	vbatt: vbatt {
+		compatible = "voltage-divider";
+		status = "okay";
+		io-channels = <&adc 4>;
+		output-ohms = <10000000>;
+		full-ohms = <20000000>;
+	};
+
 	zephyr,user {
-		/* battery.c ищет канал батареи строго здесь */
-		io-channels = <&adc 4>; 
+		/delete-property/ io-channels; /* Принудительно гасим конфликты */
 		
 		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
@@ -91,6 +99,7 @@ zephyr_udc0: &usbd {
 &spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
+	max-frequency = <DT_FREQ_M(8)>; /* Снижаем частоту шины для защиты АЦП от наводок */
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
