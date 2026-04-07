@@ -15,15 +15,19 @@
 
 static int board_promicro_init(void)
 {
-	/* using vcc-gpios for sensor power defined in promicro_uf2.dts
-	 */
+	/* 1. Питание гироскопа ICM45686 (P0.05 / VCC_GPIO_PIN из DeviceTree) */
 	nrf_gpio_cfg(NRF_GPIO_PIN_MAP(VCC_GPIO_PORT_NUM, VCC_GPIO_PIN), NRF_GPIO_PIN_DIR_OUTPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_D0H1, NRF_GPIO_PIN_NOSENSE);
 	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(VCC_GPIO_PORT_NUM, VCC_GPIO_PIN));
-	/* pull down on P0.13, disables external 3V3 regulator
-	 */
-	nrf_gpio_cfg(NRF_GPIO_PIN_MAP(0, 13), NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_PULLDOWN, NRF_GPIO_PIN_S0S1, NRF_GPIO_PIN_NOSENSE);
-	/* if external 3V3 regulator is needed, use PULLUP instead of PULLDOWN: nrf_gpio_cfg(NRF_GPIO_PIN_MAP(0, 13), NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_S0S1, NRF_GPIO_PIN_NOSENSE);
-	*/
+
+	/* 2. Питание магнитометра QMC6309 (EXTVCC P0.13)
+	 * Настраиваем как выход и подаем логическую единицу */
+	nrf_gpio_cfg(NRF_GPIO_PIN_MAP(0, 13), NRF_GPIO_PIN_DIR_OUTPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_S0S1, NRF_GPIO_PIN_NOSENSE);
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 13));
+
+	/* 3. Включаем замер батареи (открываем ключ TPS22916 на P0.27) */
+	nrf_gpio_cfg(NRF_GPIO_PIN_MAP(0, 27), NRF_GPIO_PIN_DIR_OUTPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_S0S1, NRF_GPIO_PIN_NOSENSE);
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 27));
+
 	return 0;
 }
 
