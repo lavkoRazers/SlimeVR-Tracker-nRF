@@ -3,13 +3,14 @@
 
 /dts-v1/;
 #include <nordic/nrf52840_qiaa.dtsi>
+#include <zephyr/dt-bindings/adc/adc.h>
 
 &pinctrl {
 	spi3_default: spi3_default {
 		group1 {
 			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
 					<NRF_PSEL(SPIM_MOSI, 1, 8)>,
-					<NRF_PSEL(SPIM_SCK,  0, 7)>;
+					<NRF_PSEL(SPIM_SCK, 0, 7)>;
 		};
 	};
 
@@ -17,7 +18,7 @@
 		group1 {
 			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
 					<NRF_PSEL(SPIM_MOSI, 1, 8)>,
-					<NRF_PSEL(SPIM_SCK,  0, 7)>;
+					<NRF_PSEL(SPIM_SCK, 0, 7)>;
 			low-power-enable;
 		};
 	};
@@ -70,7 +71,7 @@
 		reg = <4>;
 		zephyr,gain = "ADC_GAIN_1_6";
 		zephyr,reference = "ADC_REF_INTERNAL";
-		zephyr,acquisition-time = <ADC_ACQ_TIME_MICROSECONDS(40)>; /* Сглаживание прыжков батареи */
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>; /* Сглаживание прыжков батареи */
 		zephyr,input-positive = <NRF_SAADC_AIN4>; 
 		zephyr,resolution = <12>;
 	};
