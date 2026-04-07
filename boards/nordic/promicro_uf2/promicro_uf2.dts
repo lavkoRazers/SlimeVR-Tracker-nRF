@@ -38,7 +38,7 @@
 		imu = &imu_spi;
 	};
 
-	battery_divider: battery-divider {
+	vbatt: vbatt {
 		compatible = "voltage-divider";
 		status = "okay";
 		io-channels = <&adc 4>; /* AIN4 это P0.28 */
