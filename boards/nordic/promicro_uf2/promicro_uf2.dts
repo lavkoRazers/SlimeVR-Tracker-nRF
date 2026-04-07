@@ -1,24 +1,19 @@
-// Copyright (c) 2024 Nordic Semiconductor ASA
-// SPDX-License-Identifier: Apache-2.0
-
 /dts-v1/;
 #include <nordic/nrf52840_qiaa.dtsi>
-#include <zephyr/dt-bindings/adc/adc.h>
 
 &pinctrl {
 	spi3_default: spi3_default {
 		group1 {
 			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
 					<NRF_PSEL(SPIM_MOSI, 1, 8)>,
-					<NRF_PSEL(SPIM_SCK, 0, 7)>;
+					<NRF_PSEL(SPIM_SCK,  0, 7)>;
 		};
 	};
-
 	spi3_sleep: spi3_sleep {
 		group1 {
 			psels = <NRF_PSEL(SPIM_MISO, 1, 9)>,
 					<NRF_PSEL(SPIM_MOSI, 1, 8)>,
-					<NRF_PSEL(SPIM_SCK, 0, 7)>;
+					<NRF_PSEL(SPIM_SCK,  0, 7)>;
 			low-power-enable;
 		};
 	};
@@ -39,72 +34,34 @@
 		imu = &imu_spi;
 	};
 
-	/* ВОТ ЗДЕСЬ СЕКРЕТ. Мы просто прописываем канал АЦП прямо в zephyr,user */
+	/* Имя узла должно быть СТРОГО battery_divider для твоего battery.c */
+	battery_divider: battery_divider {
+		compatible = "voltage-divider";
+		status = "okay";
+		io-channels = <&adc 4>; 
+		output-ohms = <10000000>; /* Свойства должны быть с 's' на конце */
+		full-ohms = <20000000>;
+		power-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* Код сам будет включать P0.27 перед замером */
+	};
+
 	zephyr,user {
-		io-channels = <&adc 4>; /* AIN4 - это пин P0.28 */
-		
-		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+		/* Убираем отсюда io-channels, так как код ищет их в battery_divider */
 		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 		vcc-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 		clk-gpios = <&gpio0 12 GPIO_OPEN_DRAIN>;
-		
 		int0-gpios = <&gpio0 26 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 		led-gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 	};
 };
 
-&reg0 {
-	status = "okay";
-};
-
-&reg1 {
-	regulator-initial-mode = <NRF5X_REG_MODE_LDO>;
-};
-
-/* Обязательно активируем АЦП и прописываем канал */
 &adc {
 	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	channel@4 {
-		reg = <4>;
-		zephyr,gain = "ADC_GAIN_1_6";
-		zephyr,reference = "ADC_REF_INTERNAL";
-		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>; /* Сглаживание прыжков батареи */
-		zephyr,input-positive = <NRF_SAADC_AIN4>; 
-		zephyr,resolution = <12>;
-	};
-};
-
-&gpiote {
-	status = "okay";
-};
-
-&gpio0 {
-	status = "okay";
-};
-
-&gpio1 {
-	status = "okay";
-};
-
-&i2c0 {
-	status = "disabled";
-};
-
-zephyr_udc0: &usbd {
-	compatible = "nordic,nrf-usbd";
-	status = "okay";
-	cdc_acm_uart0: cdc_acm_uart0 {
-		compatible = "zephyr,cdc-acm-uart";
-	};
 };
 
 &spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
-	max-frequency = <DT_FREQ_M(8)>; /* Снижение наводок от SPI */
+	max-frequency = <DT_FREQ_M(8)>; 
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
@@ -117,3 +74,8 @@ zephyr_udc0: &usbd {
 		reg = <0>;
 	};
 };
+
+/* Включаем всё остальное */
+&gpio0 { status = "okay"; };
+&gpio1 { status = "okay"; };
+&usbd { status = "okay"; cdc_acm_uart0: cdc_acm_uart0 { compatible = "zephyr,cdc-acm-uart"; }; };
