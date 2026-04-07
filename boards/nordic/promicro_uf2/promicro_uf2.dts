@@ -38,18 +38,10 @@
 		imu = &imu_spi;
 	};
 
-	vbatt: vbatt {
-		compatible = "voltage-divider";
-		status = "okay";
-		io-channels = <&adc 4>; /* AIN4 это P0.28 */
-		output-ohms = <10000000>;
-		full-ohms = <20000000>;
-		power-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>; /* На всякий случай дублируем для стандартного драйвера Zephyr */
-	};
-
 	zephyr,user {
 		/* Управление питанием периферии под твой форк */
-		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;  /* Ключ делителя АКБ P0.27 */
+		io-channels = <&adc 4>;
+        adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;  /* Ключ делителя АКБ P0.27 */
 		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>; /* Питание QMC6309 / шины P0.13 */
 		vcc-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;      /* Питание ICM45686 P0.05 */
 		clk-gpios = <&gpio0 12 GPIO_OPEN_DRAIN>;      /* CLK_CTL P0.12 */
