@@ -38,17 +38,9 @@
 		imu = &imu_spi;
 	};
 
-	/* Выделенный узел для батареи, чтобы компилятор не ругался */
-	vbatt: vbatt {
-		compatible = "voltage-divider";
-		status = "okay";
-		io-channels = <&adc 4>;
-		output-ohms = <10000000>;
-		full-ohms = <20000000>;
-	};
-
+	/* ВОТ ЗДЕСЬ СЕКРЕТ. Мы просто прописываем канал АЦП прямо в zephyr,user */
 	zephyr,user {
-		/delete-property/ io-channels; /* Принудительно гасим конфликты */
+		io-channels = <&adc 4>; /* AIN4 - это пин P0.28 */
 		
 		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
@@ -68,8 +60,20 @@
 	regulator-initial-mode = <NRF5X_REG_MODE_LDO>;
 };
 
+/* Обязательно активируем АЦП и прописываем канал */
 &adc {
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@4 {
+		reg = <4>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_MICROSECONDS(40)>; /* Сглаживание прыжков батареи */
+		zephyr,input-positive = <NRF_SAADC_AIN4>; 
+		zephyr,resolution = <12>;
+	};
 };
 
 &gpiote {
@@ -99,7 +103,7 @@ zephyr_udc0: &usbd {
 &spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
-	max-frequency = <DT_FREQ_M(8)>; /* Снижаем частоту шины для защиты АЦП от наводок */
+	max-frequency = <DT_FREQ_M(8)>; /* Снижение наводок от SPI */
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
