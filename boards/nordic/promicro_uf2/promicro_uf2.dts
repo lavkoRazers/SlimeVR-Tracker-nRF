@@ -38,17 +38,16 @@
 		imu = &imu_spi;
 	};
 
-	/* Имя ноды должно быть строго battery */
-	battery: battery {
+	/* Имя строго vbatt и обязательный статус okay */
+	vbatt: vbatt {
 		compatible = "voltage-divider";
+		status = "okay";
 		io-channels = <&adc 4>;
 		output-ohms = <10000000>;
 		full-ohms = <20000000>;
 	};
 
 	zephyr,user {
-		/delete-property/ io-channels; /* Удаляем конфликты базовой платы */
-		
 		adc-en-gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 		ext-pwr-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 		vcc-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
