@@ -23,8 +23,6 @@
 #include "globals.h"
 #include "util.h"
 
-//#include
-
 #include "motionsense.h"
 
 LOG_MODULE_REGISTER(sensorfusion, LOG_LEVEL_INF);
